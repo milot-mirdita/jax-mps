@@ -168,4 +168,39 @@ def make_conv_op_configs():
                 lambda key: random.uniform(key, (8, 8, 3, 16), minval=-1.0, maxval=1.0),
                 name="lax.conv_general_dilated-large-kernel",
             ),
+            # batch_group_count > 1: JAX vmap'd conv emits batch_group_count
+            # equal to the vmapped axis size. Output_batch = N / G; the rhs
+            # output_feature dim must be a multiple of G, with one filter
+            # slice per batch group.
+            OperationTestConfig(
+                lambda x, kernel: lax.conv_general_dilated(
+                    x,
+                    kernel,
+                    window_strides=(1, 1),
+                    padding=((0, 0), (0, 0)),
+                    dimension_numbers=("NCHW", "OIHW", "NCHW"),
+                    batch_group_count=2,
+                ),
+                lambda key: random.uniform(key, (4, 1, 6, 7), minval=-1.0, maxval=1.0),
+                lambda key: random.uniform(key, (2, 1, 1, 2), minval=-1.0, maxval=1.0),
+                name="lax.conv_general_dilated-batch_group_count_2",
+            ),
+            # batch_group_count combined with the lhs_dilation + negative
+            # padding edge case: ensures the per-group convolution path
+            # bridges StableHLO's "dilate then pad" vs MLX's "pad then
+            # dilate" ordering the same way as the regular (G=1) branch.
+            OperationTestConfig(
+                lambda x, kernel: lax.conv_general_dilated(
+                    x,
+                    kernel,
+                    window_strides=(1, 1),
+                    padding=((0, -1), (0, 0)),
+                    lhs_dilation=(2, 1),
+                    dimension_numbers=("NHWC", "HWIO", "NHWC"),
+                    batch_group_count=2,
+                ),
+                lambda key: random.uniform(key, (2, 6, 7, 4), minval=-1.0, maxval=1.0),
+                lambda key: random.uniform(key, (1, 2, 4, 2), minval=-1.0, maxval=1.0),
+                name="lax.conv_general_dilated-batch_group_count_2-lhs_dilation-neg_padding",
+            ),
         ]
