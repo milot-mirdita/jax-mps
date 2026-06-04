@@ -53,6 +53,14 @@ if [[ ! $REPLY =~ ^[Yy]$ ]]; then
     exit 1
 fi
 
+# Run the full validation suite BEFORE publishing anything. The tag must only
+# be pushed once tests pass; otherwise a broken commit gets a published release.
+echo "Running pre-commit checks (build, lint, pyright, pytest)..."
+if ! uv run pre-commit run --all-files; then
+    echo "Error: pre-commit checks failed. Aborting release; no tag was pushed."
+    exit 1
+fi
+
 # Create and push tag
 echo "Creating tag ${TAG}..."
 git tag -a "$TAG" -m "Release ${CURRENT_VERSION}"
