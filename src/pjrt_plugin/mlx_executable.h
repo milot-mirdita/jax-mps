@@ -17,6 +17,11 @@ namespace jax_mps {
 // Returns the set of op names that have handlers in the MLX executable
 std::unordered_set<std::string> GetSupportedOpNames();
 
+// True when JAX_MPS_ASYNC_DISPATCH is set to an enabling value
+// ("1"/"true"/"yes"/"on", case-insensitive). Shared so the executable and the
+// startup notice agree. Evaluated once and cached.
+bool IsAsyncDispatchEnabled();
+
 class MlxBuffer;
 
 struct MlxExecuteResult {
@@ -63,6 +68,10 @@ private:
     // MLX compile support (thread safety via GetPjrtGlobalMutex at PJRT layer)
     mutable bool compile_attempted_ = false;
     mutable bool compile_succeeded_ = false;
+    // True once the compiled graph is known to contain a control-flow primitive
+    // (WhileLoop/Case). Gates the async-dispatch control-flow graph walk so pure
+    // executables skip it entirely.
+    mutable bool has_control_flow_ = false;
     mutable std::function<std::vector<mlx::core::array>(const std::vector<mlx::core::array>&)>
         compiled_fn_;
 };
