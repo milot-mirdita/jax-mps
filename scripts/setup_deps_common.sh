@@ -12,6 +12,9 @@ JOBS="${JOBS:-$(sysctl -n hw.ncpu 2>/dev/null || nproc)}"
 BUILD_DIR="${BUILD_DIR:-/tmp/jax-mps-deps-build}"
 FORCE_REBUILD=false
 
+# Pin the macOS deployment target for all deps;  MLX requires macOS >= 14.0
+export MACOSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET:-14.0}"
+
 while [[ $# -gt 0 ]]; do
     case $1 in
         --prefix) PREFIX="$2"; shift 2 ;;
