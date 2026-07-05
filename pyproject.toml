@@ -43,7 +43,7 @@ build.verbose = true
 wheel.packages = ["src/jax_plugins"]
 wheel.install-dir = "jax_plugins/mps"
 
-# Python-version agnostic wheel; tag as py3-none-<platform>
+# Python-ABI agnostic wheel tag (still Requires-Python >= 3.11); results in py3-none-<platform>
 wheel.py-api = "py3"
 
 [tool.uv.sources]
