@@ -246,6 +246,40 @@ jobs:
       - name: pyright
         run: .venv/bin/pyright
 
+  smoke-test-wheel:
+    name: Smoke-test wheel
+    needs: build
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Download wheel
+        uses: actions/download-artifact@v8
+        with:
+          name: wheel
+          path: dist/
+
+      # The wheel is tagged py3-none-macosx_<ver>_arm64: one artifact meant to
+      # load under every supported CPython (the plugin is a pure C PJRT dylib
+      # with no libpython linkage). Install that same wheel under each version
+      # and confirm the dylib loads. Device-free — the runner has no MPS GPU —
+      # so it checks packaging + dynamic loading, not compute. All versions run
+      # even if one fails, then the job reflects any failure.
+      - name: Load wheel under each supported Python
+        run: |
+          WHEEL=$(ls dist/*.whl)
+          rc=0
+          for PY in 3.11 3.12 3.13; do
+            echo "::group::Python $PY"
+            uv run --python "$PY" --no-project --with "$WHEEL" \
+              python scripts/smoke_test_wheel.py || { echo "FAILED on $PY"; rc=1; }
+            echo "::endgroup::"
+          done
+          exit $rc
+
   build-dev:
     name: Build dev wheel
     needs: [setup-llvm, setup-protobuf, setup-mlx]
@@ -378,7 +412,7 @@ jobs:
 
   release:
     name: Release
-    needs: [test, lint-cpp, lint-python]
+    needs: [test, lint-cpp, lint-python, smoke-test-wheel]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
     permissions:
