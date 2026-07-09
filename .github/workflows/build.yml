@@ -266,19 +266,15 @@ jobs:
       # load under every supported CPython (the plugin is a pure C PJRT dylib
       # with no libpython linkage). Install that same wheel under each version
       # and confirm the dylib loads. Device-free — the runner has no MPS GPU —
-      # so it checks packaging + dynamic loading, not compute. All versions run
-      # even if one fails, then the job reflects any failure.
+      # so it checks packaging + dynamic loading, not compute. The default
+      # bash -e aborts the step on the first version that fails.
       - name: Load wheel under each supported Python
         run: |
           WHEEL=$(ls dist/*.whl)
-          rc=0
           for PY in 3.11 3.12 3.13; do
-            echo "::group::Python $PY"
-            uv run --python "$PY" --no-project --with "$WHEEL" \
-              python scripts/smoke_test_wheel.py || { echo "FAILED on $PY"; rc=1; }
-            echo "::endgroup::"
+            echo "=== Python $PY ==="
+            uv run --python "$PY" --no-project --with "$WHEEL" python scripts/smoke_test_wheel.py
           done
-          exit $rc
 
   build-dev:
     name: Build dev wheel

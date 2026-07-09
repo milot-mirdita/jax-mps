@@ -38,6 +38,13 @@ import jax_plugins.mps as mps
 
 
 def main() -> int:
+    # Failures below are deliberately left uncaught: for a CI check the full
+    # traceback pinpoints what broke (a missing/mis-pointed library raises
+    # MPSPluginError, ctypes.CDLL raises OSError on a load failure, resolving the
+    # exported symbol raises AttributeError when it is absent, initialize raises
+    # MPSPluginError). An uncaught exception still exits nonzero and fails the
+    # job -- a traceback is more useful here than an opaque one-line message.
+
     # 1. The wheel must actually ship the dylib where the shim looks for it.
     path = mps._find_library()
     if path is None:
@@ -50,15 +57,9 @@ def main() -> int:
     # 2. Real ABI check: dlopen the dylib and resolve its one exported symbol
     #    (see #199 -- everything else is hidden). A Python-ABI break, arch
     #    mismatch, missing dependent library, or broken export table fails here,
-    #    with no MPS device required. ctypes.CDLL raises OSError on a load
-    #    failure and attribute access raises AttributeError on a missing symbol;
-    #    report either as a clean smoke-test failure rather than a raw traceback.
-    try:
-        lib = ctypes.CDLL(path)
-        _ = lib.GetPjrtApi  # dlsym; AttributeError if the entry point is absent
-    except (OSError, AttributeError) as e:
-        print(f"SMOKE FAIL: {path} did not load with GetPjrtApi: {e}", file=sys.stderr)
-        return 1
+    #    with no MPS device required.
+    lib = ctypes.CDLL(path)
+    _ = lib.GetPjrtApi  # dlsym; raises AttributeError if the entry point is absent
 
     # 3. Exercise the entry point JAX calls to register the plugin. This runs
     #    xla_bridge.register_plugin but does not enumerate devices, so it is
